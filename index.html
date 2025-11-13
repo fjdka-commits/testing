@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>오렌지 주식회사 임직원 쇼핑몰</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 폰트 및 기본 스타일 설정 */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+        
+        body {
+            font-family: 'Inter', 'Noto Sans KR', sans-serif;
+            background-color: #f7f7f7; /* 배경색을 밝은 회색으로 변경 */
+            color: #333;
+        }
+
+        /* 상품 카드 스타일 */
+        .product-card {
+            cursor: pointer;
+            /* scale 트랜지션 추가 */
+            transition: transform 0.2s, box-shadow 0.2s, scale 0.2s; 
+            background-color: #fff;
+            border: 1px solid #eee; 
+            box-shadow: none !important; 
+            overflow: hidden;
+            text-align: left;
+        }
+        .product-card:hover {
+            transform: translateY(-3px);
+            scale: 1.03; /* 마우스 오버 시 살짝 확대 */
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+        .product-image-container {
+            background-color: #f5f5f5; 
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .product-image {
+            width: 100%;
+            height: 250px;
+            object-fit: contain; 
+        }
+        
+        /* 상품 정보 영역 스타일 (높이 확장 기능 제거) */
+        .product-info {
+            padding: 1rem;
+            position: relative;
+            /* 높이 제어 관련 속성 제거 */
+            overflow: hidden; 
+        }
+
+        /* 상품 설명 텍스트 스타일 (줄 수 제한 제거 및 오버플로우 관리) */
+        .product-description {
+            font-size: 0.875rem; 
+            color: #9ca3af; 
+            margin-top: 0.5rem; 
+            
+            /* 텍스트가 잘리지 않도록 줄 수 제한 제거 */
+            display: block; 
+            overflow: visible; 
+            word-break: break-word; 
+            height: auto; 
+        }
+        
+        /* 이름과 가격은 항상 온전히 보이도록 설정 */
+        .product-name, .product-price {
+            display: block !important; 
+            overflow: visible !important;
+            word-break: break-word;
+        }
+
+
+        /* 팝업 모달 스타일 */
+        .modal {
+            display: none; 
+            position: fixed;
+            z-index: 50; 
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.7); 
+        }
+
+        .modal-content {
+            background-color: #fff;
+            margin: 15vh auto; 
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 400px; 
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+            animation: fadeIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .close-btn {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close-btn:hover,
+        .close-btn:focus {
+            color: #000;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        /* 버튼 스타일 */
+        #checkout-btn {
+            background-color: #1a1a1a; 
+            transition: background-color 0.2s;
+        }
+        #checkout-btn:hover:not(:disabled) {
+            background-color: #555;
+        }
+        #checkout-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 헤더 - 깔끔하고 미니멀한 디자인 --><header class="bg-white border-b border-gray-200">
+        <div class="max-w-7xl mx-auto flex justify-between items-center py-4 px-4 sm:px-6 lg:px-8">
+            <h1 class="text-xl font-semibold tracking-widest text-gray-900 uppercase">
+                 Orange Company
+            </h1>
+            <nav class="hidden sm:block">
+                <a href="#" class="text-sm text-gray-500 hover:text-gray-900 mx-3">HOME</a>
+                <a href="#" class="text-sm text-gray-900 font-medium mx-3">SHOP</a>
+                <a href="#" class="text-sm text-gray-500 hover:text-gray-900 mx-3">CONTACT</a>
+            </nav>
+            <div class="flex items-center">
+                <!-- 장바구니 아이콘 및 카운트 --><div class="relative cursor-pointer hover:text-gray-900 text-gray-500" onclick="openCartModal()">
+                    <!-- Shopping Bag Icon (Lucide) --><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6">
+                        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path>
+                        <path d="M3 6h18"></path>
+                        <path d="M16 10a4 4 0 0 1-8 0"></path>
+                    </svg>
+                    <!-- Cart Count Indicator --><span id="cart-count" class="absolute -top-1 -right-1 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full">
+                        0
+                    </span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 메인 콘텐츠 영역 --><main class="max-w-7xl mx-auto mt-10 px-4 sm:px-6 lg:px-8">
+        <!-- 상품 분류 헤더 --><div class="mb-8 pb-4 border-b border-gray-300">
+            <h2 class="text-4xl font-light tracking-wide mb-2">SHOP LIST</h2>
+            <p class="text-sm text-gray-500">prepared just for you, ONE DAY ONE ORANGE</p>
+        </div>
+
+        <!-- 상품 목록 --><div id="product-list" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <!-- 상품 카드들이 여기에 동적으로 추가됩니다. --></div>
+    </main>
+
+    <!-- 장바구니/체크아웃 팝업 창 (모달) --><div id="cart-checkout-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="cart-modal-title">
+        <div class="modal-content !max-w-lg">
+            <span class="close-btn" onclick="closeCartModal()">&times;</span>
+            <h2 id="cart-modal-title" class="text-2xl font-medium mb-6 text-gray-900 text-center">SHOPPING CART</h2>
+            
+            <div id="cart-items-container" class="max-h-60 overflow-y-auto pr-2">
+                <!-- Cart items rendered here --><p id="empty-cart-message" class="text-center text-gray-500 py-8 hidden">장바구니가 비어있습니다.</p>
+            </div>
+
+            <div class="mt-6 pt-4 border-t border-gray-200">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-lg font-medium text-gray-900">총 결제 금액:</span>
+                    <span id="cart-total-value" class="text-xl font-bold text-gray-900">0 P</span>
+                </div>
+
+                <div class="mb-6 text-left">
+                    <!-- 2. 구매자 이름 대신 4자리 직원 코드로 변경 --><label for="checkout-employee-code" class="block text-sm font-medium text-gray-700 mb-2">
+                        직원 코드 (4자리 숫자, 영구 저장):
+                    </label>
+                    <input type="tel" id="checkout-employee-code" placeholder="4자리 코드를 입력하세요 (예: 1004)" 
+                        class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-sm focus:ring-gray-700 focus:border-gray-700 sm:text-sm"
+                        maxlength="4" inputmode="numeric" pattern="[0-9]{4}">
+                </div>
+
+                <button id="checkout-btn" 
+                        class="w-full py-3 px-4 rounded-sm text-white font-medium shadow-sm bg-gray-900 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black" disabled>
+                    장바구니 전체 구매 확정
+                </button>
+
+                <!-- 에러 메시지 표시 영역 --><p id="checkout-error-message" class="text-red-500 text-sm mt-3 hidden text-center">직원 코드(4자리 숫자)를 입력해야 구매할 수 있습니다.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK Import (type="module" 필수) --><script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, 
+            signInAnonymously, 
+            signInWithCustomToken, 
+            onAuthStateChanged 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            addDoc, 
+            collection
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase 설정: 환경 변수에서 값 가져오기 (필수)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // 전역 변수 설정
+        let db = null;
+        let auth = null;
+        let userId = null;
+        let isFirebaseReady = false; 
+
+        if (firebaseConfig) {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+
+            // 인증 및 userId 설정
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                } else {
+                    try {
+                        if (initialAuthToken) {
+                            const userCredential = await signInWithCustomToken(auth, initialAuthToken);
+                            userId = userCredential.user.uid;
+                        } else {
+                            const userCredential = await signInAnonymously(auth);
+                            userId = userCredential.user.uid;
+                        }
+                    } catch (error) {
+                        console.error("Firebase Auth failed:", error);
+                        userId = crypto.randomUUID(); // 인증 실패 시 대체 ID
+                    }
+                }
+                isFirebaseReady = true;
+                console.log("Firebase Ready. User ID:", userId);
+            });
+        } else {
+            console.error("Firebase configuration is missing.");
+        }
+        
+        // 메인 스크립트에서 사용하도록 함수 및 변수 노출
+        window.db = db;
+        window.addDoc = addDoc;
+        window.collection = collection;
+        window.getFirebaseReady = () => isFirebaseReady;
+        window.getUserId = () => userId;
+        window.getAppId = () => appId;
+    </script>
+
+    <!-- 메인 스크립트 --><script>
+        // "alert()" 대신 사용할 간단한 모달 메시지 함수
+        function showMessage(message) {
+            const messageBox = document.createElement('div');
+            messageBox.className = 'fixed top-4 right-4 bg-gray-900 text-white p-4 rounded-md shadow-xl z-50 transition duration-300 ease-in-out';
+            messageBox.textContent = message;
+            document.body.appendChild(messageBox);
+            setTimeout(() => {
+                messageBox.remove();
+            }, 3000);
+        }
+
+        // 특정 모달의 에러 메시지를 표시하는 범용 함수
+        function showErrorMessage(message, elementId) {
+            const errorElement = document.getElementById(elementId);
+            if (errorElement) {
+                errorElement.textContent = message;
+                errorElement.classList.remove('hidden');
+            }
+        }
+
+        // 특정 모달의 에러 메시지를 숨기는 범용 함수
+        function hideErrorMessage(elementId) {
+            const errorElement = document.getElementById(elementId);
+            if (errorElement) {
+                errorElement.classList.add('hidden');
+            }
+        }
+        
+        // Helper: Firebase가 완전히 초기화되고 인증될 때까지 기다립니다.
+        async function waitForFirebaseReady(timeout = 5000) {
+            const startTime = Date.now();
+            return new Promise((resolve, reject) => {
+                const check = () => {
+                    // window.getFirebaseReady()와 window.db가 모두 true/존재하는지 확인
+                    if (window.getFirebaseReady() && window.db) {
+                        resolve();
+                    } else if (Date.now() - startTime > timeout) {
+                        reject(new Error("Firebase initialization timed out."));
+                    } else {
+                        setTimeout(check, 100); // 100ms 후 다시 확인
+                    }
+                };
+                check();
+            });
+        }
+
+
+        // 1. 상품 데이터 정의 (내용 유지)
+        const products = [
+            { 
+                id: 1, 
+                name: "프리미엄 오렌지주스", 
+                description: "무려 진짜 오렌지즙이 1%나 함유된 프리미엄 오렌지 주스다. 웰몬트의 효자 상품. 오염도 -20%", 
+                price: "500 P", 
+                image: "https://cdn.discordapp.com/attachments/1428005198143688714/1438515462383075478/d842b46950944d07.png?ex=6917296c&is=6915d7ec&hm=bec868bc297693e6c669148b0455921e45448abab7b48ba6e87216861e3dcc74" 
+            },
+            { 
+                id: 2, 
+                name: "오렌지주스", 
+                description: "어디서나 볼 수 있는 흔한 오렌지 주스. 설탕 함유량이 높다. 오염도 -10%", 
+                price: "200 P", 
+                image: "https://cdn.discordapp.com/attachments/1394056401088679966/1438570414912569576/KakaoTalk_20251110_094656257.png?ex=69175c9a&is=69160b1a&hm=632767b34082852c5c64f6e222cde210b79da22aeae91d857c23ef55c4d98227" 
+            },
+            { 
+                id: 3, 
+                name: "필름 카메라", 
+                description: "딱 한 장 필름이 남아있는 낡은 카메라다. 원하는 사람들을 찍거나 함께 사진을 한 장 남길 수 있다. (인화는 팀장에게 문의하도록!)", 
+                price: "3000 P", 
+                image: "https://cdn.discordapp.com/attachments/1394056401088679966/1438571013905449030/KakaoTalk_20251110_094656257_01.png?ex=69175d29&is=69160ba9&hm=0ef2d5ba3515fd469632543a6e458414b238fd00e63e755697980e1562016a80" 
+            },
+            { 
+                id: 4, 
+                name: "O의 랜덤박스", 
+                description: "우리의 마스코트 로봇 O가 돌려주는 1,000p 랜덤 박스. 상점 아이템 중 랜덤한 물건을 증정! * 히든 아이템 존재 *", 
+                price: "1000 P", 
+                image: "https://cdn.discordapp.com/attachments/1394056401088679966/1438571437332893827/6935302d628b746b.png?ex=69175d8e&is=69160c0e&hm=f06d8eafe27214997322d4fe874ff346c3f9240ba35cd36af522a315df6f049b" 
+            },
+            { 
+                id: 5, 
+                name: "미정", 
+                description: "미정 상품입니다.", 
+                price: "0 P", 
+                image: "https://images.unsplash.com/photo-1603597818464-96657958b4b2?w=400&h=400&fit=crop" 
+            }
+        ];
+
+        // --- 전역 상태 및 DOM 요소 참조 ---
+        let cart = []; // 장바구니 상태 (상품 객체 + quantity)
+
+        const productList = document.getElementById('product-list');
+        
+        // 장바구니 체크아웃 모달 (#cart-checkout-modal)
+        const cartModal = document.getElementById('cart-checkout-modal');
+        const cartItemsContainer = document.getElementById('cart-items-container');
+        const cartTotalValue = document.getElementById('cart-total-value');
+        const cartCountIndicator = document.getElementById('cart-count');
+        
+        // 직원 코드로 변경된 입력 필드 참조
+        const checkoutEmployeeCodeInput = document.getElementById('checkout-employee-code');
+        const checkoutBtn = document.getElementById('checkout-btn');
+        const checkoutErrorMessageId = 'checkout-error-message';
+        const emptyCartMessage = document.getElementById('empty-cart-message');
+
+        // Helper: P(포인트) 문자열을 숫자로 변환
+        function parsePrice(priceString) {
+            return parseInt(priceString.replace(' P', '').replace(/,/g, ''), 10);
+        }
+        
+        // Helper: 카트 아이템 수 업데이트
+        function updateCartCount() {
+            // 장바구니에 담긴 품목의 '종류' 수를 표시
+            cartCountIndicator.textContent = cart.length;
+        }
+
+        // 상품 목록 동적 생성 함수
+        function renderProducts() {
+            productList.innerHTML = ''; 
+            products.forEach(product => {
+                const card = document.createElement('div');
+                card.classList.add('product-card', 'rounded-lg'); 
+                card.setAttribute('data-product-id', product.id);
+
+                card.innerHTML = `
+                    <div class="product-image-container rounded-t-lg">
+                        <img src="${product.image}" alt="${product.name}" class="product-image">
+                    </div>
+                    <div class="product-info">
+                        <p class="product-name text-lg font-medium text-gray-900 mb-1">${product.name}</p> 
+                        <p class="product-price text-base font-semibold text-gray-900 mb-1">${product.price}</p> 
+                        <p class="product-description text-sm text-gray-400 mt-2">${product.description}</p> 
+                    </div>
+                `;
+                
+                card.addEventListener('click', () => {
+                    addToCart(product);
+                });
+
+                productList.appendChild(card);
+            });
+        }
+        
+        // 장바구니에 담기 (바로 담기 기능)
+        function addToCart(product) {
+            const existingItem = cart.find(item => item.id === product.id);
+            if (existingItem) {
+                existingItem.quantity += 1;
+            } else {
+                cart.push({ ...product, quantity: 1 });
+            }
+            updateCartCount();
+            showMessage(`✅ ${product.name}이(가) 장바구니에 담겼습니다. (수량: ${existingItem ? existingItem.quantity : 1})`);
+        }
+        
+        // 장바구니 총 금액 계산
+        function calculateCartTotal() {
+            return cart.reduce((total, item) => {
+                return total + (parsePrice(item.price) * item.quantity);
+            }, 0);
+        }
+
+        // 장바구니 아이템 렌더링
+        function renderCartItems() {
+            cartItemsContainer.innerHTML = '';
+            if (cart.length === 0) {
+                emptyCartMessage.classList.remove('hidden');
+                cartTotalValue.textContent = '0 P';
+                checkoutBtn.disabled = true;
+                return;
+            }
+            emptyCartMessage.classList.add('hidden');
+            checkoutBtn.disabled = false;
+            
+            cart.forEach((item, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'flex items-center justify-between p-3 border-b border-gray-100 last:border-b-0';
+                
+                const totalItemPrice = parsePrice(item.price) * item.quantity;
+
+                itemDiv.innerHTML = `
+                    <div class="flex items-center flex-1">
+                        <img src="${item.image}" alt="${item.name}" class="w-10 h-10 object-contain mr-4 bg-gray-50 rounded-sm">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-gray-900 truncate">${item.name}</p>
+                            <p class="text-xs text-gray-500">${item.price} x ${item.quantity} = ${totalItemPrice.toLocaleString('ko-KR')} P</p>
+                        </div>
+                    </div>
+                    <button class="text-red-500 hover:text-red-700 text-sm py-1 px-2 rounded hover:bg-red-50" onclick="removeItemFromCart(${index})">
+                        삭제
+                    </button>
+                `;
+                cartItemsContainer.appendChild(itemDiv);
+            });
+            
+            // 총합 업데이트
+            cartTotalValue.textContent = `${calculateCartTotal().toLocaleString('ko-KR')} P`;
+        }
+        
+        // 장바구니 아이템 삭제
+        window.removeItemFromCart = (index) => {
+            cart.splice(index, 1);
+            renderCartItems();
+            updateCartCount();
+            showMessage('Item removed from cart.');
+        }
+
+        // 장바구니 팝업 열기/닫기
+        window.openCartModal = () => {
+            renderCartItems();
+            checkoutEmployeeCodeInput.value = '';
+            hideErrorMessage(checkoutErrorMessageId);
+            cartModal.style.display = 'block';
+            if (cart.length > 0) {
+                 checkoutEmployeeCodeInput.focus();
+            }
+        }
+
+        window.closeCartModal = () => {
+            cartModal.style.display = 'none';
+        }
+
+        // 팝업 외부 클릭 및 닫기 버튼 설정
+        window.onclick = (event) => {
+            if (event.target == cartModal) {
+                closeCartModal();
+            }
+        };
+
+        // 장바구니 전체 구매 확정 (체크아웃) 이벤트
+        checkoutBtn.addEventListener('click', async () => {
+            const employeeCode = checkoutEmployeeCodeInput.value.trim();
+
+            if (cart.length === 0) {
+                 showErrorMessage('장바구니가 비어있습니다.', checkoutErrorMessageId);
+                 return;
+            }
+
+            // 직원 코드 유효성 검사 (4자리 숫자)
+            const codeRegex = /^\d{4}$/;
+            if (!codeRegex.test(employeeCode)) {
+                showErrorMessage('직원 코드(4자리 숫자)를 정확히 입력해야 구매할 수 있습니다.', checkoutErrorMessageId);
+                return;
+            }
+
+            hideErrorMessage(checkoutErrorMessageId);
+            await checkoutFromCart(employeeCode); // 직원 코드를 인수로 전달
+        });
+
+        // 엔터 키 이벤트 (장바구니 구매)
+        checkoutEmployeeCodeInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault(); 
+                checkoutBtn.click();
+            }
+        });
+
+        // Firebase 구매 저장 로직
+        async function savePurchase(product, employeeCode, transactionType) {
+            // NOTE: 이 함수는 상위 함수(checkoutFromCart)에서 Firebase 준비가 완료될 때까지 기다린 후 호출된다고 가정
+            if (!window.db) {
+                 throw new Error('Database connection is not available.');
+            }
+
+            const purchaseInfo = {
+                // 구매자 이름 대신 직원 코드를 저장
+                employeeCode: employeeCode,
+                item: product.name,
+                price: product.price,
+                quantity: product.quantity || 1,
+                transactionType: transactionType, // 'cart'
+                date: new Date().toLocaleString('ko-KR', { hour12: false }),
+                totalPrice: (parsePrice(product.price) * (product.quantity || 1)),
+                userId: window.getUserId(), 
+                appId: window.getAppId()
+            };
+
+            const path = `artifacts/${window.getAppId()}/public/data/purchases`;
+            const docRef = await window.addDoc(window.collection(window.db, path), purchaseInfo);
+            
+            // 콘솔 로그에 직원 코드와 품목을 명확히 표시
+            console.log(`
+✅ 구매 완료! (장바구니 구매) - Firestore Doc ID: ${docRef.id}
+--------------------------------------------------
+직원 코드: ${employeeCode}
+구매 품목: ${product.name}
+수량: ${purchaseInfo.quantity}
+총 금액: ${purchaseInfo.totalPrice.toLocaleString('ko-KR')} P
+--------------------------------------------------
+`);
+            return docRef.id;
+        }
+        
+        // 장바구니 전체 구매 함수
+        async function checkoutFromCart(employeeCode) {
+            checkoutBtn.disabled = true;
+            
+            try {
+                // 🚨 CRITICAL FIX: Firebase 초기화가 완료될 때까지 대기
+                await waitForFirebaseReady(); 
+                
+                // 장바구니에 있는 모든 아이템에 대해 개별 구매 기록을 저장 (Promise.all로 병렬 처리)
+                const savePromises = cart.map(item => savePurchase(item, employeeCode, 'cart'));
+                await Promise.all(savePromises);
+                
+                // 구매 성공 후 장바구니 초기화
+                const totalItems = cart.length;
+                cart = [];
+                updateCartCount();
+                renderCartItems();
+                
+                showMessage(`구매 완료되었습니다! (직원 코드: ${employeeCode}, 총 ${totalItems}개)`);
+                closeCartModal();
+
+            } catch (error) {
+                console.error("Cart checkout failed:", error);
+                 if (error.message.includes("timed out")) {
+                    showErrorMessage('데이터베이스 연결에 문제가 발생했습니다. 페이지 새로고침 후 다시 시도해 주세요.', checkoutErrorMessageId);
+                } else {
+                    showErrorMessage('전체 구매 중 오류가 발생했습니다. 콘솔을 확인하세요.', checkoutErrorMessageId);
+                }
+            } finally {
+                checkoutBtn.disabled = false;
+            }
+        }
+
+
+        // 페이지 로드 시 상품 목록 생성
+        window.onload = () => {
+            renderProducts();
+            updateCartCount(); // 초기 카운트 설정
+        };
+    </script>
+</body>
+</html>
