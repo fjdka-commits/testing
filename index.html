@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>오렌지 주식회사 임직원 쇼핑몰</title>
+    <!-- 웹사이트 아이콘(파비콘) 최종 적용 -->
+    <link rel="icon" type="image/x-icon" href="uploaded:로고확정-03.ico">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* 폰트 및 기본 스타일 설정 */
@@ -220,7 +222,8 @@
         </div>
     </div>
 
-    <!-- Firebase SDK Import (type="module" 필수) --><script type="module">
+    <!-- Firebase SDK Import (type="module" 필수) - 백엔드 시스템 재작성 -->
+    <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { 
             getAuth, 
@@ -239,52 +242,87 @@
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        // 전역 변수 설정
-        let db = null;
-        let auth = null;
-        let userId = null;
-        let isFirebaseReady = false; 
-
-        if (firebaseConfig) {
-            const app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
-
-            // 인증 및 userId 설정
-            onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    userId = user.uid;
-                } else {
-                    try {
-                        if (initialAuthToken) {
-                            const userCredential = await signInWithCustomToken(auth, initialAuthToken);
-                            userId = userCredential.user.uid;
-                        } else {
-                            const userCredential = await signInAnonymously(auth);
-                            userId = userCredential.user.uid;
-                        }
-                    } catch (error) {
-                        console.error("Firebase Auth failed:", error);
-                        userId = crypto.randomUUID(); // 인증 실패 시 대체 ID
-                    }
+        // Firebase 초기화 및 상태 관리 모듈 (메인 스크립트가 안전하게 호출)
+        window.getFirebaseModule = () => {
+            return new Promise(async (resolve, reject) => {
+                if (!firebaseConfig) {
+                    return reject(new Error("Firebase Config Missing"));
                 }
-                isFirebaseReady = true;
-                console.log("Firebase Ready. User ID:", userId);
+                
+                let db = null;
+                let userId = null;
+                const authTimeout = 10000; // 10초 타임아웃
+                
+                try {
+                    const app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    const auth = getAuth(app);
+                    
+                    let authResolved = false;
+                    
+                    // 인증 완료를 기다리는 Promise
+                    const authPromise = new Promise(authResolve => {
+                        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+                            unsubscribe(); // 한 번만 실행되도록 구독 해제
+
+                            if (user) {
+                                userId = user.uid;
+                                authResolved = true;
+                                authResolve();
+                            } else {
+                                try {
+                                    if (initialAuthToken) {
+                                        const userCredential = await signInWithCustomToken(auth, initialAuthToken);
+                                        userId = userCredential.user.uid;
+                                    } else {
+                                        const userCredential = await signInAnonymously(auth);
+                                        userId = userCredential.user.uid;
+                                    }
+                                    authResolved = true;
+                                    authResolve();
+                                } catch (error) {
+                                    console.error("Firebase Auth failed (anonymous/custom token):", error);
+                                    userId = crypto.randomUUID(); 
+                                    authResolved = true;
+                                    authResolve();
+                                }
+                            }
+                        });
+                    });
+                    
+                    // 인증 Promise와 타임아웃 Promise를 경쟁시킴
+                    const timeoutPromise = new Promise((_, rejectTimeout) => 
+                        setTimeout(() => rejectTimeout(new Error("Auth Timeout")), authTimeout)
+                    );
+                    
+                    // 두 Promise 중 하나가 완료되기를 기다림
+                    await Promise.race([authPromise, timeoutPromise]);
+                    
+                    if (!authResolved) {
+                         throw new Error("Auth process incomplete due to timeout.");
+                    }
+                    
+                    console.log("SUCCESS: Firebase Auth and Firestore setup complete. User ID:", userId);
+                    
+                    // 메인 스크립트가 사용할 객체와 함수를 반환
+                    resolve({
+                        db,
+                        userId,
+                        appId,
+                        addDoc,
+                        collection
+                    });
+                    
+                } catch (error) {
+                    console.error("FATAL ERROR in Firebase Module Init:", error);
+                    reject(error);
+                }
             });
-        } else {
-            console.error("Firebase configuration is missing.");
-        }
-        
-        // 메인 스크립트에서 사용하도록 함수 및 변수 노출
-        window.db = db;
-        window.addDoc = addDoc;
-        window.collection = collection;
-        window.getFirebaseReady = () => isFirebaseReady;
-        window.getUserId = () => userId;
-        window.getAppId = () => appId;
+        };
     </script>
 
-    <!-- 메인 스크립트 --><script>
+    <!-- 메인 스크립트 (모든 로직을 비동기 IIFE로 래핑하여 Firebase 종속성 처리) -->
+    <script>
         // "alert()" 대신 사용할 간단한 모달 메시지 함수
         function showMessage(message) {
             const messageBox = document.createElement('div');
@@ -313,23 +351,9 @@
             }
         }
         
-        // Helper: Firebase가 완전히 초기화되고 인증될 때까지 기다립니다.
-        async function waitForFirebaseReady(timeout = 10000) { // 타임아웃 10초로 증가
-            const startTime = Date.now();
-            return new Promise((resolve, reject) => {
-                const check = () => {
-                    if (window.getFirebaseReady() && window.db) {
-                        resolve();
-                    } else if (Date.now() - startTime > timeout) {
-                        reject(new Error("Firebase initialization timed out."));
-                    } else {
-                        setTimeout(check, 100); 
-                    }
-                };
-                check();
-            });
-        }
-
+        // --- Firebase 상태 및 객체 ---
+        let firebaseModule = { db: null, userId: null, appId: null, addDoc: null, collection: null };
+        let isFirebaseConnected = false; 
 
         // 1. 상품 데이터 정의 (내용 유지)
         const products = [
@@ -370,25 +394,22 @@
             }
         ];
 
-        // --- 전역 상태 및 DOM 요소 참조 ---
-        let cart = []; // 장바구니 상태 (상품 객체 + quantity)
-        let isFirebaseConnected = false; // Firebase 연결 상태 추적
-
+        // --- DOM 요소 참조 ---
         const productList = document.getElementById('product-list');
-        
-        // 장바구니 체크아웃 모달 (#cart-checkout-modal)
         const cartModal = document.getElementById('cart-checkout-modal');
         const cartItemsContainer = document.getElementById('cart-items-container');
         const cartTotalValue = document.getElementById('cart-total-value');
         const cartCountIndicator = document.getElementById('cart-count');
-        
-        // 직원 코드로 변경된 입력 필드 참조
         const checkoutEmployeeCodeInput = document.getElementById('checkout-employee-code');
         const checkoutBtn = document.getElementById('checkout-btn');
         const checkoutBtnText = document.getElementById('checkout-btn-text');
         const checkoutLoadingSpinner = document.getElementById('checkout-loading-spinner');
         const checkoutErrorMessageId = 'checkout-error-message';
         const emptyCartMessage = document.getElementById('empty-cart-message');
+        
+        // 장바구니 상태 (상품 객체 + quantity)
+        let cart = []; 
+
 
         // Helper: P(포인트) 문자열을 숫자로 변환
         function parsePrice(priceString) {
@@ -397,7 +418,6 @@
         
         // Helper: 카트 아이템 수 업데이트
         function updateCartCount() {
-            // 장바구니에 담긴 품목의 '종류' 수를 표시
             cartCountIndicator.textContent = cart.length;
         }
 
@@ -407,35 +427,34 @@
             hideErrorMessage(checkoutErrorMessageId);
 
             if (connected) {
-                // 연결 성공: 버튼 활성화 및 텍스트 변경
-                checkoutBtn.disabled = false;
+                checkoutBtn.disabled = (cart.length === 0);
                 checkoutBtnText.textContent = "장바구니 전체 구매 확정";
                 checkoutLoadingSpinner.classList.add('hidden');
             } else {
-                // 연결 실패 또는 로딩 중: 버튼 비활성화 및 텍스트 변경
                 checkoutBtn.disabled = true;
                 checkoutLoadingSpinner.classList.remove('hidden');
                 checkoutBtnText.textContent = "데이터베이스 연결 중...";
             }
         }
         
-        // Firebase 연결 초기화 및 상태 업데이트 로직
+        // Firebase 연결 초기화 및 상태 업데이트 로직 (새로운 모듈 기반)
         async function initializeFirebaseConnection() {
-            // 로딩 스피너 활성화 및 버튼 비활성화
+            // 초기 버튼 상태 설정
             setFirebaseConnectionStatus(false);
             
             try {
-                // 타임아웃(10초) 내에 연결 시도
-                await waitForFirebaseReady(10000);
+                // window.getFirebaseModule()을 통해 Promise 기반으로 Firebase 객체를 안전하게 가져옴
+                const module = await window.getFirebaseModule();
+                firebaseModule = module;
+                
                 setFirebaseConnectionStatus(true);
-                console.log("SUCCESS: Firebase connection established.");
+                console.log("SUCCESS: Firebase module successfully loaded and authenticated.");
                 
             } catch (error) {
-                // 타임아웃 발생 또는 초기화 실패
-                console.error("ERROR: Firebase initialization failed or timed out.", error);
+                console.error("FATAL ERROR: Firebase connection failed.", error);
                 
-                // 버튼을 재연결 시도 버튼으로 변경
-                checkoutBtn.disabled = false;
+                // 연결 실패 시 버튼을 재연결 시도 버튼으로 변경
+                checkoutBtn.disabled = false; // 재시도 버튼은 활성화
                 checkoutLoadingSpinner.classList.add('hidden');
                 checkoutBtnText.textContent = "재연결 시도";
                 
@@ -443,10 +462,6 @@
                 showErrorMessage('데이터베이스 연결에 문제가 발생했습니다. 재연결을 시도하거나 새로고침 해 주세요.', checkoutErrorMessageId);
             }
         }
-
-        // 초기 Firebase 연결 시도
-        initializeFirebaseConnection();
-
 
         // 상품 목록 동적 생성 함수
         function renderProducts() {
@@ -498,14 +513,13 @@
         function renderCartItems() {
             cartItemsContainer.innerHTML = '';
             
-            // 연결 상태에 따라 버튼 활성화/비활성화
+            // Firebase 연결 상태에 따라 버튼 활성화/비활성화
             if (isFirebaseConnected) {
                 checkoutBtn.disabled = (cart.length === 0);
-                checkoutBtnText.textContent = "장바구니 전체 구매 확정";
-            } else if (checkoutBtnText.textContent !== "재연결 시도") {
-                 // 연결 대기 중이거나 실패했으나 재연결 버튼이 아닌 경우
+            } else if (checkoutBtnText.textContent === "재연결 시도") {
+                checkoutBtn.disabled = false;
+            } else {
                  checkoutBtn.disabled = true;
-                 checkoutBtnText.textContent = "데이터베이스 연결 중...";
             }
             
             if (cart.length === 0) {
@@ -556,26 +570,21 @@
             hideErrorMessage(checkoutErrorMessageId);
             cartModal.style.display = 'block';
             
-            // Firebase 연결 상태에 따라 버튼 텍스트와 비활성화 설정 업데이트
+            // Firebase 연결 상태에 따라 UI 업데이트
             if (isFirebaseConnected) {
                 checkoutBtnText.textContent = "장바구니 전체 구매 확정";
                 checkoutLoadingSpinner.classList.add('hidden');
-                if (cart.length > 0) {
-                    checkoutBtn.disabled = false;
-                    checkoutEmployeeCodeInput.focus();
-                } else {
-                    checkoutBtn.disabled = true;
-                }
+                checkoutBtn.disabled = (cart.length === 0);
             } else {
-                // 연결 대기 중 또는 실패
                 if (checkoutBtnText.textContent === "재연결 시도") {
-                    showErrorMessage('데이터베이스 연결이 실패했습니다. 재연결 시도를 눌러 주세요.', checkoutErrorMessageId);
-                    checkoutLoadingSpinner.classList.add('hidden');
+                     checkoutBtn.disabled = false;
+                     checkoutLoadingSpinner.classList.add('hidden');
                 } else {
-                    showErrorMessage('데이터베이스 연결 중입니다. 잠시 기다려 주세요.', checkoutErrorMessageId);
-                    checkoutLoadingSpinner.classList.remove('hidden');
+                     // 연결 중이거나 초기 상태
+                     checkoutBtn.disabled = true;
+                     checkoutBtnText.textContent = "데이터베이스 연결 중...";
+                     checkoutLoadingSpinner.classList.remove('hidden');
                 }
-                checkoutBtn.disabled = (checkoutBtnText.textContent !== "재연결 시도");
             }
         }
 
@@ -595,6 +604,7 @@
             
             // 재연결 시도 버튼일 경우
             if (checkoutBtnText.textContent === "재연결 시도") {
+                // 버튼 텍스트와 상태를 다시 초기 연결 상태로 되돌리고 재시도
                 initializeFirebaseConnection();
                 return;
             }
@@ -632,7 +642,9 @@
 
         // Firebase 구매 저장 로직
         async function savePurchase(product, employeeCode, transactionType) {
-            if (!window.db) {
+            const { db, appId, userId, addDoc, collection } = firebaseModule;
+
+            if (!db) {
                  throw new Error('Database connection is not available.');
             }
 
@@ -645,12 +657,13 @@
                 transactionType: transactionType, // 'cart'
                 date: new Date().toLocaleString('ko-KR', { hour12: false }),
                 totalPrice: (parsePrice(product.price) * (product.quantity || 1)),
-                userId: window.getUserId(), 
-                appId: window.getAppId()
+                userId: userId, 
+                appId: appId
             };
 
-            const path = `artifacts/${window.getAppId()}/public/data/purchases`;
-            const docRef = await window.addDoc(window.collection(window.db, path), purchaseInfo);
+            // Firestore 보안 규칙에 따른 public 경로 사용
+            const path = `artifacts/${appId}/public/data/purchases`;
+            const docRef = await addDoc(collection(db, path), purchaseInfo);
             
             // 콘솔 로그에 직원 코드와 품목을 명확히 표시
             console.log(`
@@ -667,6 +680,7 @@
         
         // 장바구니 전체 구매 함수
         async function checkoutFromCart(employeeCode) {
+            // UI를 로딩 상태로 변경
             checkoutBtn.disabled = true;
             checkoutBtnText.textContent = "구매 진행 중...";
             checkoutLoadingSpinner.classList.remove('hidden');
@@ -688,17 +702,19 @@
             } catch (error) {
                 console.error("Cart checkout failed:", error);
                 
-                // Firebase 연결 상태가 끊겼거나, 저장 중 오류 발생 시
-                if (error.message.includes("Database connection is not available") || error.message.includes("timed out")) {
-                    showErrorMessage('데이터베이스 연결에 문제가 발생했습니다. 재연결을 시도하거나 새로고침 해 주세요.', checkoutErrorMessageId);
-                    // 연결 상태를 실패로 변경하여 버튼을 재연결 모드로 전환
-                    setFirebaseConnectionStatus(false);
+                // 에러 발생 시 Firebase 연결 상태 재확인
+                await initializeFirebaseConnection(); 
+
+                if (!isFirebaseConnected) {
+                     // 재시도 후에도 연결이 실패한 경우
+                     showErrorMessage('데이터베이스 연결 실패. 재연결 시도 후 다시 해 주세요.', checkoutErrorMessageId);
                 } else {
-                    showErrorMessage('전체 구매 중 알 수 없는 오류가 발생했습니다. 콘솔을 확인하세요.', checkoutErrorMessageId);
+                     // 연결은 됐으나 저장 중에 오류가 난 경우
+                     showErrorMessage('전체 구매 중 알 수 없는 오류가 발생했습니다. 콘솔을 확인하세요.', checkoutErrorMessageId);
                 }
 
             } finally {
-                // 최종적으로 버튼 상태 업데이트
+                // 최종적으로 버튼 상태 업데이트 (initializeFirebaseConnection에서 처리됨)
                 if (isFirebaseConnected) {
                      checkoutBtn.disabled = (cart.length === 0);
                      checkoutBtnText.textContent = "장바구니 전체 구매 확정";
@@ -717,6 +733,7 @@
         window.onload = () => {
             renderProducts();
             updateCartCount(); // 초기 카운트 설정
+            initializeFirebaseConnection(); // Firebase 연결 시작
         };
     </script>
 </body>
