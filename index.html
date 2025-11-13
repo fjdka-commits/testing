@@ -119,6 +119,9 @@
         #checkout-btn {
             background-color: #1a1a1a; 
             transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         #checkout-btn:hover:not(:disabled) {
             background-color: #555;
@@ -126,6 +129,21 @@
         #checkout-btn:disabled {
             background-color: #ccc;
             cursor: not-allowed;
+        }
+        
+        /* 로딩 스피너 CSS */
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3); /* 배경에 가까운 색 */
+            border-left-color: #fff; /* 회전하는 부분 */
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -192,7 +210,9 @@
 
                 <button id="checkout-btn" 
                         class="w-full py-3 px-4 rounded-sm text-white font-medium shadow-sm bg-gray-900 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black" disabled>
-                    장바구니 전체 구매 확정
+                    <!-- 로딩 스피너와 버튼 텍스트가 함께 표시됨 -->
+                    <span id="checkout-loading-spinner" class="spinner hidden"></span>
+                    <span id="checkout-btn-text">데이터베이스 연결 중...</span>
                 </button>
 
                 <!-- 에러 메시지 표시 영역 --><p id="checkout-error-message" class="text-red-500 text-sm mt-3 hidden text-center">직원 코드(4자리 숫자)를 입력해야 구매할 수 있습니다.</p>
@@ -294,17 +314,16 @@
         }
         
         // Helper: Firebase가 완전히 초기화되고 인증될 때까지 기다립니다.
-        async function waitForFirebaseReady(timeout = 5000) {
+        async function waitForFirebaseReady(timeout = 10000) { // 타임아웃 10초로 증가
             const startTime = Date.now();
             return new Promise((resolve, reject) => {
                 const check = () => {
-                    // window.getFirebaseReady()와 window.db가 모두 true/존재하는지 확인
                     if (window.getFirebaseReady() && window.db) {
                         resolve();
                     } else if (Date.now() - startTime > timeout) {
                         reject(new Error("Firebase initialization timed out."));
                     } else {
-                        setTimeout(check, 100); // 100ms 후 다시 확인
+                        setTimeout(check, 100); 
                     }
                 };
                 check();
@@ -353,6 +372,7 @@
 
         // --- 전역 상태 및 DOM 요소 참조 ---
         let cart = []; // 장바구니 상태 (상품 객체 + quantity)
+        let isFirebaseConnected = false; // Firebase 연결 상태 추적
 
         const productList = document.getElementById('product-list');
         
@@ -365,6 +385,8 @@
         // 직원 코드로 변경된 입력 필드 참조
         const checkoutEmployeeCodeInput = document.getElementById('checkout-employee-code');
         const checkoutBtn = document.getElementById('checkout-btn');
+        const checkoutBtnText = document.getElementById('checkout-btn-text');
+        const checkoutLoadingSpinner = document.getElementById('checkout-loading-spinner');
         const checkoutErrorMessageId = 'checkout-error-message';
         const emptyCartMessage = document.getElementById('empty-cart-message');
 
@@ -378,6 +400,53 @@
             // 장바구니에 담긴 품목의 '종류' 수를 표시
             cartCountIndicator.textContent = cart.length;
         }
+
+        // Firebase 연결 상태에 따라 버튼과 전역 상태 업데이트
+        function setFirebaseConnectionStatus(connected) {
+            isFirebaseConnected = connected;
+            hideErrorMessage(checkoutErrorMessageId);
+
+            if (connected) {
+                // 연결 성공: 버튼 활성화 및 텍스트 변경
+                checkoutBtn.disabled = false;
+                checkoutBtnText.textContent = "장바구니 전체 구매 확정";
+                checkoutLoadingSpinner.classList.add('hidden');
+            } else {
+                // 연결 실패 또는 로딩 중: 버튼 비활성화 및 텍스트 변경
+                checkoutBtn.disabled = true;
+                checkoutLoadingSpinner.classList.remove('hidden');
+                checkoutBtnText.textContent = "데이터베이스 연결 중...";
+            }
+        }
+        
+        // Firebase 연결 초기화 및 상태 업데이트 로직
+        async function initializeFirebaseConnection() {
+            // 로딩 스피너 활성화 및 버튼 비활성화
+            setFirebaseConnectionStatus(false);
+            
+            try {
+                // 타임아웃(10초) 내에 연결 시도
+                await waitForFirebaseReady(10000);
+                setFirebaseConnectionStatus(true);
+                console.log("SUCCESS: Firebase connection established.");
+                
+            } catch (error) {
+                // 타임아웃 발생 또는 초기화 실패
+                console.error("ERROR: Firebase initialization failed or timed out.", error);
+                
+                // 버튼을 재연결 시도 버튼으로 변경
+                checkoutBtn.disabled = false;
+                checkoutLoadingSpinner.classList.add('hidden');
+                checkoutBtnText.textContent = "재연결 시도";
+                
+                // 에러 메시지 표시
+                showErrorMessage('데이터베이스 연결에 문제가 발생했습니다. 재연결을 시도하거나 새로고침 해 주세요.', checkoutErrorMessageId);
+            }
+        }
+
+        // 초기 Firebase 연결 시도
+        initializeFirebaseConnection();
+
 
         // 상품 목록 동적 생성 함수
         function renderProducts() {
@@ -428,6 +497,17 @@
         // 장바구니 아이템 렌더링
         function renderCartItems() {
             cartItemsContainer.innerHTML = '';
+            
+            // 연결 상태에 따라 버튼 활성화/비활성화
+            if (isFirebaseConnected) {
+                checkoutBtn.disabled = (cart.length === 0);
+                checkoutBtnText.textContent = "장바구니 전체 구매 확정";
+            } else if (checkoutBtnText.textContent !== "재연결 시도") {
+                 // 연결 대기 중이거나 실패했으나 재연결 버튼이 아닌 경우
+                 checkoutBtn.disabled = true;
+                 checkoutBtnText.textContent = "데이터베이스 연결 중...";
+            }
+            
             if (cart.length === 0) {
                 emptyCartMessage.classList.remove('hidden');
                 cartTotalValue.textContent = '0 P';
@@ -435,7 +515,6 @@
                 return;
             }
             emptyCartMessage.classList.add('hidden');
-            checkoutBtn.disabled = false;
             
             cart.forEach((item, index) => {
                 const itemDiv = document.createElement('div');
@@ -476,8 +555,27 @@
             checkoutEmployeeCodeInput.value = '';
             hideErrorMessage(checkoutErrorMessageId);
             cartModal.style.display = 'block';
-            if (cart.length > 0) {
-                 checkoutEmployeeCodeInput.focus();
+            
+            // Firebase 연결 상태에 따라 버튼 텍스트와 비활성화 설정 업데이트
+            if (isFirebaseConnected) {
+                checkoutBtnText.textContent = "장바구니 전체 구매 확정";
+                checkoutLoadingSpinner.classList.add('hidden');
+                if (cart.length > 0) {
+                    checkoutBtn.disabled = false;
+                    checkoutEmployeeCodeInput.focus();
+                } else {
+                    checkoutBtn.disabled = true;
+                }
+            } else {
+                // 연결 대기 중 또는 실패
+                if (checkoutBtnText.textContent === "재연결 시도") {
+                    showErrorMessage('데이터베이스 연결이 실패했습니다. 재연결 시도를 눌러 주세요.', checkoutErrorMessageId);
+                    checkoutLoadingSpinner.classList.add('hidden');
+                } else {
+                    showErrorMessage('데이터베이스 연결 중입니다. 잠시 기다려 주세요.', checkoutErrorMessageId);
+                    checkoutLoadingSpinner.classList.remove('hidden');
+                }
+                checkoutBtn.disabled = (checkoutBtnText.textContent !== "재연결 시도");
             }
         }
 
@@ -494,7 +592,19 @@
 
         // 장바구니 전체 구매 확정 (체크아웃) 이벤트
         checkoutBtn.addEventListener('click', async () => {
+            
+            // 재연결 시도 버튼일 경우
+            if (checkoutBtnText.textContent === "재연결 시도") {
+                initializeFirebaseConnection();
+                return;
+            }
+            
             const employeeCode = checkoutEmployeeCodeInput.value.trim();
+
+            if (!isFirebaseConnected) {
+                 showErrorMessage('데이터베이스 연결 중입니다. 잠시 후 다시 시도해주세요.', checkoutErrorMessageId);
+                 return;
+            }
 
             if (cart.length === 0) {
                  showErrorMessage('장바구니가 비어있습니다.', checkoutErrorMessageId);
@@ -522,7 +632,6 @@
 
         // Firebase 구매 저장 로직
         async function savePurchase(product, employeeCode, transactionType) {
-            // NOTE: 이 함수는 상위 함수(checkoutFromCart)에서 Firebase 준비가 완료될 때까지 기다린 후 호출된다고 가정
             if (!window.db) {
                  throw new Error('Database connection is not available.');
             }
@@ -559,11 +668,10 @@
         // 장바구니 전체 구매 함수
         async function checkoutFromCart(employeeCode) {
             checkoutBtn.disabled = true;
+            checkoutBtnText.textContent = "구매 진행 중...";
+            checkoutLoadingSpinner.classList.remove('hidden');
             
             try {
-                // 🚨 CRITICAL FIX: Firebase 초기화가 완료될 때까지 대기
-                await waitForFirebaseReady(); 
-                
                 // 장바구니에 있는 모든 아이템에 대해 개별 구매 기록을 저장 (Promise.all로 병렬 처리)
                 const savePromises = cart.map(item => savePurchase(item, employeeCode, 'cart'));
                 await Promise.all(savePromises);
@@ -572,20 +680,35 @@
                 const totalItems = cart.length;
                 cart = [];
                 updateCartCount();
-                renderCartItems();
+                renderCartItems(); 
                 
                 showMessage(`구매 완료되었습니다! (직원 코드: ${employeeCode}, 총 ${totalItems}개)`);
                 closeCartModal();
 
             } catch (error) {
                 console.error("Cart checkout failed:", error);
-                 if (error.message.includes("timed out")) {
-                    showErrorMessage('데이터베이스 연결에 문제가 발생했습니다. 페이지 새로고침 후 다시 시도해 주세요.', checkoutErrorMessageId);
+                
+                // Firebase 연결 상태가 끊겼거나, 저장 중 오류 발생 시
+                if (error.message.includes("Database connection is not available") || error.message.includes("timed out")) {
+                    showErrorMessage('데이터베이스 연결에 문제가 발생했습니다. 재연결을 시도하거나 새로고침 해 주세요.', checkoutErrorMessageId);
+                    // 연결 상태를 실패로 변경하여 버튼을 재연결 모드로 전환
+                    setFirebaseConnectionStatus(false);
                 } else {
-                    showErrorMessage('전체 구매 중 오류가 발생했습니다. 콘솔을 확인하세요.', checkoutErrorMessageId);
+                    showErrorMessage('전체 구매 중 알 수 없는 오류가 발생했습니다. 콘솔을 확인하세요.', checkoutErrorMessageId);
                 }
+
             } finally {
-                checkoutBtn.disabled = false;
+                // 최종적으로 버튼 상태 업데이트
+                if (isFirebaseConnected) {
+                     checkoutBtn.disabled = (cart.length === 0);
+                     checkoutBtnText.textContent = "장바구니 전체 구매 확정";
+                     checkoutLoadingSpinner.classList.add('hidden');
+                } else {
+                     // 연결이 끊긴 상태로 종료 (재연결 시도 모드)
+                     checkoutBtn.disabled = false;
+                     checkoutBtnText.textContent = "재연결 시도";
+                     checkoutLoadingSpinner.classList.add('hidden');
+                }
             }
         }
 
