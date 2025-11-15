@@ -232,10 +232,12 @@
             onAuthStateChanged 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { 
-            getFirestore, 
-            addDoc, 
-            collection
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    getFirestore, 
+    addDoc, 
+    collection,
+    setDoc,
+    doc
+} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         // **FIREBASE CONFIGURATION**
         // 환경 변수가 제공되지 않은 경우, 디버깅을 위해 하드코딩된 CONFIG를 사용합니다.
@@ -315,7 +317,9 @@
                         userId,
                         appId,
                         addDoc,
-                        collection
+                        collection,
+                        setDoc,
+                        doc
                     });
                     
                 } catch (error) {
@@ -652,43 +656,53 @@
         });
 
         // Firebase 구매 저장 로직
+// Firebase 구매 저장 로직
         async function savePurchase(product, employeeCode, transactionType) {
-            const { db, appId, userId, addDoc, collection } = firebaseModule;
+            const { db, appId, userId, setDoc, doc, collection } = firebaseModule;
 
             if (!db) {
                  throw new Error('Database connection is not available.');
             }
 
             const purchaseInfo = {
-                // 구매자 이름 대신 직원 코드를 저장
                 employeeCode: employeeCode,
                 item: product.name,
                 price: product.price,
                 quantity: product.quantity || 1,
-                transactionType: transactionType, // 'cart'
+                transactionType: transactionType,
                 date: new Date().toLocaleString('ko-KR', { hour12: false }),
                 totalPrice: (parsePrice(product.price) * (product.quantity || 1)),
                 userId: userId, 
                 appId: appId
             };
 
-            // Firestore 보안 규칙에 따른 public 경로 사용
+            // 타임스탬프를 ID로 사용
+            const now = new Date();
+            const timestamp = now.getFullYear() +
+                             String(now.getMonth() + 1).padStart(2, '0') +
+                             String(now.getDate()).padStart(2, '0') + '_' +
+                             String(now.getHours()).padStart(2, '0') +
+                             String(now.getMinutes()).padStart(2, '0') +
+                             String(now.getSeconds()).padStart(2, '0') + '_' +
+                             String(now.getMilliseconds()).padStart(3, '0');
+
             const path = `artifacts/${appId}/public/data/purchases`;
-            const docRef = await addDoc(collection(db, path), purchaseInfo);
+            const docRef = doc(db, path, timestamp);
+            await setDoc(docRef, purchaseInfo);
             
-            // 콘솔 로그에 직원 코드와 품목을 명확히 표시
             console.log(`
-✅ 구매 완료! (장바구니 구매) - Firestore Doc ID: ${docRef.id}
+✅ 구매 완료! (장바구니 구매) - Firestore Doc ID: ${timestamp}
 --------------------------------------------------
 직원 코드: ${employeeCode}
 구매 품목: ${product.name}
 수량: ${purchaseInfo.quantity}
 총 금액: ${purchaseInfo.totalPrice.toLocaleString('ko-KR')} P
+구매 시간: ${purchaseInfo.date}
 --------------------------------------------------
 `);
-            return docRef.id;
+            return timestamp;
         }
-        
+      
         // 장바구니 전체 구매 함수
         async function checkoutFromCart(employeeCode) {
             // UI를 로딩 상태로 변경
@@ -748,4 +762,5 @@
     </script>
 </body>
 </html>
+
 
