@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>오렌지 주식회사 임직원 쇼핑몰</title>
     <!-- 웹사이트 아이콘(파비콘) 최종 적용 -->
-    <link rel="icon" type="image/x-icon" href="uploaded:로고확정-03.ico">
+    <link rel="icon" type="image/png" href="https://i.postimg.cc/RCcvDhPc/logohwagjeong-03.jpg">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* 폰트 및 기본 스타일 설정 */
@@ -236,31 +236,30 @@
             addDoc, 
             collection
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // **FIREBASE CONFIGURATION**
+        // 환경 변수가 제공되지 않은 경우, 디버깅을 위해 하드코딩된 CONFIG를 사용합니다.
+        const providedConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "AIzaSyCpTsxI2iMBNI_iYxhhuzu8mmKt_nAPNq0",
+            authDomain: "test-b49ef.firebaseapp.com",
+            projectId: "test-b49ef",
+            storageBucket: "test-b49ef.firebasestorage.app",
+            appId: "1:250359349916:web:43411fddcc96a59010e359"
+        };
 
-        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyCpTsxI2iMBNI_iYxhhuzu8mmKt_nAPNq0",
-  authDomain: "test-b49ef.firebaseapp.com",
-  projectId: "test-b49ef",
-  storageBucket: "test-b49ef.firebasestorage.app",
-  messagingSenderId: "250359349916",
-  appId: "1:250359349916:web:43411fddcc96a59010e359",
-  measurementId: "G-86K8VC6P86"
-};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        // 앱 ID를 파싱하거나, 하드코딩된 경우 projectId를 사용
+        const appId = providedConfig.appId.split(':')[2] || providedConfig.projectId; 
 
         // Firebase 초기화 및 상태 관리 모듈 (메인 스크립트가 안전하게 호출)
         window.getFirebaseModule = () => {
             return new Promise(async (resolve, reject) => {
-                if (!firebaseConfig) {
-                    return reject(new Error("Firebase Config Missing"));
-                }
-                
                 let db = null;
                 let userId = null;
                 const authTimeout = 10000; // 10초 타임아웃
                 
                 try {
-                    const app = initializeApp(firebaseConfig);
+                    const app = initializeApp(providedConfig);
                     db = getFirestore(app);
                     const auth = getAuth(app);
                     
@@ -358,7 +357,7 @@ const firebaseConfig = {
         }
         
         // --- Firebase 상태 및 객체 ---
-        let firebaseModule = { db: null, userId: null, appId: , addDoc: null, collection: null };
+        let firebaseModule = { db: null, userId: null, appId: null, addDoc: null, collection: null };
         let isFirebaseConnected = false; 
 
         // 1. 상품 데이터 정의 (내용 유지)
@@ -368,28 +367,28 @@ const firebaseConfig = {
                 name: "프리미엄 오렌지주스", 
                 description: "무려 진짜 오렌지즙이 1%나 함유된 프리미엄 오렌지 주스다. 웰몬트의 효자 상품. 오염도 -20%", 
                 price: "500 P", 
-                image: "https://cdn.discordapp.com/attachments/1428005198143688714/1438515462383075478/d842b46950944d07.png?ex=6917296c&is=6915d7ec&hm=bec868bc297693e6c669148b0455921e45448abab7b48ba6e87216861e3dcc74" 
+                image: "https://i.postimg.cc/LsTd2g1t/image3.png" 
             },
             { 
                 id: 2, 
                 name: "오렌지주스", 
                 description: "어디서나 볼 수 있는 흔한 오렌지 주스. 설탕 함유량이 높다. 오염도 -10%", 
                 price: "200 P", 
-                image: "https://cdn.discordapp.com/attachments/1394056401088679966/1438570414912569576/KakaoTalk_20251110_094656257.png?ex=69175c9a&is=69160b1a&hm=632767b34082852c5c64f6e222cde210b79da22aeae91d857c23ef55c4d98227" 
+                image: "https://i.postimg.cc/CKNySnqb/image2.png" 
             },
             { 
                 id: 3, 
                 name: "필름 카메라", 
                 description: "딱 한 장 필름이 남아있는 낡은 카메라다. 원하는 사람들을 찍거나 함께 사진을 한 장 남길 수 있다. (인화는 팀장에게 문의하도록!)", 
                 price: "3000 P", 
-                image: "https://cdn.discordapp.com/attachments/1394056401088679966/1438571013905449030/KakaoTalk_20251110_094656257_01.png?ex=69175d29&is=69160ba9&hm=0ef2d5ba3515fd469632543a6e458414b238fd00e63e755697980e1562016a80" 
+                image: "https://i.postimg.cc/k5crqRbN/image1.png" 
             },
             { 
                 id: 4, 
-                name: "O의 랜덤박스", 
-                description: "우리의 마스코트 로봇 O가 돌려주는 1,000p 랜덤 박스. 상점 아이템 중 랜덤한 물건을 증정! * 히든 아이템 존재 *", 
+                name: "O-O의 랜덤박스", 
+                description: "우리의 마스코트 로봇 O-O가 돌려주는 1,000p 랜덤 박스. 상점 아이템 중 랜덤한 물건을 증정! * 히든 아이템 존재 *", 
                 price: "1000 P", 
-                image: "https://cdn.discordapp.com/attachments/1394056401088679966/1438571437332893827/6935302d628b746b.png?ex=69175d8e&is=69160c0e&hm=f06d8eafe27214997322d4fe874ff346c3f9240ba35cd36af522a315df6f049b" 
+                image: "https://i.postimg.cc/jjXVtn7W/image0.png" 
             },
             { 
                 id: 5, 
@@ -456,6 +455,9 @@ const firebaseConfig = {
                 setFirebaseConnectionStatus(true);
                 console.log("SUCCESS: Firebase module successfully loaded and authenticated.");
                 
+                // **수정된 로직: Firebase 연결 성공 후 상품 렌더링 시작**
+                renderProducts(); 
+                
             } catch (error) {
                 console.error("FATAL ERROR: Firebase connection failed.", error);
                 
@@ -466,6 +468,9 @@ const firebaseConfig = {
                 
                 // 에러 메시지 표시
                 showErrorMessage('데이터베이스 연결에 문제가 발생했습니다. 재연결을 시도하거나 새로고침 해 주세요.', checkoutErrorMessageId);
+                
+                // 연결 실패 시 빈 상품 목록 표시 (혹시 모를 오류 대비)
+                productList.innerHTML = '<p class="text-center text-gray-500 py-20 col-span-full">상품 목록을 불러올 수 없습니다. 연결 상태를 확인해주세요.</p>';
             }
         }
 
@@ -735,13 +740,11 @@ const firebaseConfig = {
         }
 
 
-        // 페이지 로드 시 상품 목록 생성
+        // 페이지 로드 시 상품 목록 생성 (Firebase 연결 후 호출됨)
         window.onload = () => {
-            renderProducts();
             updateCartCount(); // 초기 카운트 설정
-            initializeFirebaseConnection(); // Firebase 연결 시작
+            initializeFirebaseConnection(); // Firebase 연결 시작 (성공 시 renderProducts() 호출)
         };
     </script>
 </body>
 </html>
-
