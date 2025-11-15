@@ -237,10 +237,16 @@
             collection
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase 설정: 환경 변수에서 값 가져오기 (필수)
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyCpTsxI2iMBNI_iYxhhuzu8mmKt_nAPNq0",
+  authDomain: "test-b49ef.firebaseapp.com",
+  projectId: "test-b49ef",
+  storageBucket: "test-b49ef.firebasestorage.app",
+  messagingSenderId: "250359349916",
+  appId: "1:250359349916:web:43411fddcc96a59010e359",
+  measurementId: "G-86K8VC6P86"
+};
 
         // Firebase 초기화 및 상태 관리 모듈 (메인 스크립트가 안전하게 호출)
         window.getFirebaseModule = () => {
@@ -352,7 +358,7 @@
         }
         
         // --- Firebase 상태 및 객체 ---
-        let firebaseModule = { db: null, userId: null, appId: null, addDoc: null, collection: null };
+        let firebaseModule = { db: null, userId: null, appId: , addDoc: null, collection: null };
         let isFirebaseConnected = false; 
 
         // 1. 상품 데이터 정의 (내용 유지)
@@ -738,3 +744,4 @@
     </script>
 </body>
 </html>
+
