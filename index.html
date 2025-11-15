@@ -686,7 +686,7 @@
                              String(now.getSeconds()).padStart(2, '0') + '_' +
                              String(now.getMilliseconds()).padStart(3, '0');
 
-            const path = `artifacts/${appId}/public/data/purchases`;
+            const path = `purchases`;
             const docRef = doc(db, path, timestamp);
             await setDoc(docRef, purchaseInfo);
             
@@ -762,6 +762,7 @@
     </script>
 </body>
 </html>
+
 
 
 
