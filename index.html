@@ -458,9 +458,38 @@
         const checkoutErrorMessageId = 'checkout-error-message';
         const emptyCartMessage = document.getElementById('empty-cart-message');
         
-        // 장바구니 상태 (상품 객체 + quantity)
+       // 장바구니 상태
         let cart = []; 
 
+        // ⭐ 직원 코드 → 캐릭터 이름 매칭 (24명 정보)
+        const employeeNames = {
+            "1111": "팀장",
+            "2222": "부팀장",
+            "8513": "에블린 머피",
+            "8558": "칼리 마틴",
+            "8333": "피비 홀러웨이",
+            "8924": "휴 와이즈먼",
+            "8312": "허상균",
+            "8915": "노아 틸맨",
+            "8014": "킬리언 제데다이어",
+            "8567": "레나 와그너",
+            "8419": "김 진",
+            "8231": "콜러 하이랜드",
+            "8859": "아나스타샤 모로즈",
+            "8018": "케일 스튜어드",
+            "8712": "니콜라스 나바로",
+            "8853": "밀라 안",
+            "8703": "닐 데이비스",
+            "8216": "모리스 에반스",
+            "8844": "레노라 보데커",
+            "8309": "리아 팬튼",
+            "8754": "게오반 딜튼",
+            "8277": "애커 키너드",
+            "8499": "거스 배럿",
+            "8026": "맥 젠킨스",
+            "8966": "제이크 콜린스",
+            "8416": "메이어 원"
+        };
 
         // Helper: P(포인트) 문자열을 숫자로 변환
         function parsePrice(priceString) {
@@ -731,11 +760,17 @@
             const docRef = doc(db, path, timestamp);
             await setDoc(docRef, purchaseInfo);
             
-            // ⭐⭐⭐ 여기에 복사한 웹훅 URL 붙여넣기! ⭐⭐⭐
-            const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1470746418724601927/SFygmfQsiLSuLnYq0NBSeVJki7KiRnv4LRKYo3Tlm6Fi8rDEyOBrvPBht24ferjGsSqB";
+            // Discord 웹훅 URL (여기에 본인 URL 입력!)
+            const DISCORD_WEBHOOK_URL = "여기에_복사한_웹훅_URL_붙여넣기";
             
             // Discord 알림 보내기
             try {
+                // 직원 코드로 이름 찾기
+                const employeeName = employeeNames[employeeCode] || "미등록 직원";
+                const displayName = employeeNames[employeeCode] 
+                    ? `${employeeName} (\`${employeeCode}\`)` 
+                    : `⚠️ 미등록 (\`${employeeCode}\`)`;
+                
                 await fetch(DISCORD_WEBHOOK_URL, {
                     method: 'POST',
                     headers: {
@@ -744,11 +779,11 @@
                     body: JSON.stringify({
                         embeds: [{
                             title: "🛒 새로운 구매 발생!",
-                            color: 16744192, // 주황색
+                            color: 16744192,
                             fields: [
                                 {
-                                    name: "👤 직원 코드",
-                                    value: `\`${employeeCode}\``,
+                                    name: "👤 구매자",
+                                    value: displayName,
                                     inline: true
                                 },
                                 {
@@ -787,13 +822,12 @@
                 console.log("✅ Discord 알림 전송 성공!");
             } catch (error) {
                 console.error("❌ Discord 알림 전송 실패:", error);
-                // 알림 실패해도 구매는 정상 처리됨
             }
             
             console.log(`
-✅ 구매 완료! (장바구니 구매) - Firestore Doc ID: ${timestamp}
+✅ 구매 완료! - Firestore Doc ID: ${timestamp}
 --------------------------------------------------
-직원 코드: ${employeeCode}
+구매자: ${employeeNames[employeeCode] || '미등록'} (${employeeCode})
 구매 품목: ${product.name}
 수량: ${purchaseInfo.quantity}
 총 금액: ${purchaseInfo.totalPrice.toLocaleString('ko-KR')} P
@@ -802,6 +836,8 @@
 `);
             return timestamp;
         }
+
+
       
         // 장바구니 전체 구매 함수
         async function checkoutFromCart(employeeCode) {
@@ -862,6 +898,7 @@
     </script>
 </body>
 </html>
+
 
 
 
