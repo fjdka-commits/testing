@@ -698,7 +698,6 @@
         });
 
         // Firebase 구매 저장 로직
-// Firebase 구매 저장 로직
         async function savePurchase(product, employeeCode, transactionType) {
             const { db, appId, userId, setDoc, doc, collection } = firebaseModule;
 
@@ -731,6 +730,65 @@
             const path = `purchases`;
             const docRef = doc(db, path, timestamp);
             await setDoc(docRef, purchaseInfo);
+            
+            // ⭐⭐⭐ 여기에 복사한 웹훅 URL 붙여넣기! ⭐⭐⭐
+            const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1470746418724601927/SFygmfQsiLSuLnYq0NBSeVJki7KiRnv4LRKYo3Tlm6Fi8rDEyOBrvPBht24ferjGsSqB";
+            
+            // Discord 알림 보내기
+            try {
+                await fetch(DISCORD_WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        embeds: [{
+                            title: "🛒 새로운 구매 발생!",
+                            color: 16744192, // 주황색
+                            fields: [
+                                {
+                                    name: "👤 직원 코드",
+                                    value: `\`${employeeCode}\``,
+                                    inline: true
+                                },
+                                {
+                                    name: "📦 상품명",
+                                    value: product.name,
+                                    inline: true
+                                },
+                                {
+                                    name: "💰 단가",
+                                    value: product.price,
+                                    inline: true
+                                },
+                                {
+                                    name: "📊 수량",
+                                    value: `${purchaseInfo.quantity}개`,
+                                    inline: true
+                                },
+                                {
+                                    name: "💵 총 금액",
+                                    value: `**${purchaseInfo.totalPrice.toLocaleString('ko-KR')} P**`,
+                                    inline: true
+                                },
+                                {
+                                    name: "🕐 구매 시간",
+                                    value: purchaseInfo.date,
+                                    inline: false
+                                }
+                            ],
+                            footer: {
+                                text: "오렌지 주식회사 임직원 쇼핑몰"
+                            },
+                            timestamp: new Date().toISOString()
+                        }]
+                    })
+                });
+                console.log("✅ Discord 알림 전송 성공!");
+            } catch (error) {
+                console.error("❌ Discord 알림 전송 실패:", error);
+                // 알림 실패해도 구매는 정상 처리됨
+            }
             
             console.log(`
 ✅ 구매 완료! (장바구니 구매) - Firestore Doc ID: ${timestamp}
@@ -804,6 +862,7 @@
     </script>
 </body>
 </html>
+
 
 
 
