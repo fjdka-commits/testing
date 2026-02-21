@@ -147,9 +147,169 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+           /* 🎬 호러 404 에러 스타일 */
+        .horror-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            animation: flicker 0.1s infinite;
+        }
+
+        .tv-noise {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(255, 255, 255, 0.03) 2px,
+                    rgba(255, 255, 255, 0.03) 4px
+                );
+            animation: noise 0.2s infinite;
+            opacity: 0.3;
+        }
+
+        @keyframes noise {
+            0% { transform: translate(0, 0); }
+            10% { transform: translate(-5%, -5%); }
+            20% { transform: translate(-10%, 5%); }
+            30% { transform: translate(5%, -10%); }
+            40% { transform: translate(-5%, 15%); }
+            50% { transform: translate(-10%, 5%); }
+            60% { transform: translate(15%, 0); }
+            70% { transform: translate(0, 10%); }
+            80% { transform: translate(-15%, 0); }
+            90% { transform: translate(10%, 5%); }
+            100% { transform: translate(5%, 0); }
+        }
+
+        @keyframes flicker {
+            0% { opacity: 1; }
+            50% { opacity: 0.95; }
+            100% { opacity: 1; }
+        }
+
+        .error-code {
+            font-size: 120px;
+            font-weight: bold;
+            color: #0000ff;
+            text-shadow: 
+                0 0 10px #0000ff,
+                0 0 20px #0000ff,
+                0 0 30px #0000ff,
+                0 0 40px #0000ff;
+            animation: glitch 1s infinite;
+            z-index: 10;
+            font-family: 'Courier New', monospace;
+        }
+
+        @keyframes glitch {
+            0% {
+                transform: translate(0);
+                text-shadow: 
+                    0 0 10px #0000ff,
+                    0 0 20px #0000ff;
+            }
+            20% {
+                transform: translate(-2px, 2px);
+                text-shadow: 
+                    -2px 0 #0000ff,
+                    2px 0 #0000ff;
+            }
+            40% {
+                transform: translate(-2px, -2px);
+                text-shadow: 
+                    2px 0 #0000ff,
+                    -2px 0 #0000ff;
+            }
+            60% {
+                transform: translate(2px, 2px);
+                text-shadow: 
+                    -2px 0 #0000ff,
+                    2px 0 #0000ff;
+            }
+            80% {
+                transform: translate(2px, -2px);
+                text-shadow: 
+                    0 0 10px #0000ff,
+                    0 0 20px #0000ff;
+            }
+            100% {
+                transform: translate(0);
+                text-shadow: 
+                    0 0 10px #0000ff,
+                    0 0 20px #0000ff;
+            }
+        }
+
+        .error-message {
+            font-size: 24px;
+            color: #fff;
+            margin-top: 30px;
+            text-align: center;
+            animation: blink 1.5s infinite;
+            z-index: 10;
+            font-family: 'Courier New', monospace;
+            text-shadow: 0 0 10px #fff;
+        }
+
+        @keyframes blink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+        }
+
+        .static-lines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            animation: scan 8s linear infinite;
+        }
+
+        @keyframes scan {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(10px); }
+        }
     </style>
 </head>
 <body>
+  <!-- 🎬 호러 404 에러 화면 -->
+    <div class="horror-overlay">
+        <div class="tv-noise"></div>
+        <div class="static-lines"></div>
+        <div class="error-code">404</div>
+        <div class="error-message">
+            STORE TEMPORARILY UNAVAILABLE<br>
+            상점이 일시적으로 이용 불가능합니다<br>
+            <span style="font-size: 16px; margin-top: 10px; display: block;">
+                [ SYSTEM ERROR - CONTACT ADMINISTRATOR ]
+            </span>
+        </div>
+    </div>
+
+    <!-- 원래 헤더 (숨겨짐) -->
+    <header class="bg-white border-b border-gray-200">   
 
     <!-- 헤더 - 깔끔하고 미니멀한 디자인 --><header class="bg-white border-b border-gray-200">
         <div class="max-w-7xl mx-auto flex justify-between items-center py-4 px-4 sm:px-6 lg:px-8">
@@ -919,6 +1079,7 @@
     </script>
 </body>
 </html>
+
 
 
 
